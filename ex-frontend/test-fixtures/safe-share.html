@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VeilCast Safe Share Fixture</title>
+    <style>
+      body {
+        min-height: 220vh;
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+        padding: 48px;
+      }
+
+      main {
+        max-width: 760px;
+      }
+
+      section {
+        margin-bottom: 48px;
+      }
+
+      input {
+        display: block;
+        width: 320px;
+        padding: 10px;
+      }
+
+      #moving-secret {
+        position: relative;
+        transition: transform 400ms ease;
+      }
+
+      #moving-secret.moved {
+        transform: translate(220px, 80px);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>Safe Share local fixture</h1>
+        <p>This normal paragraph should remain visible and clickable while the shield is active.</p>
+        <button type="button" onclick="this.textContent = 'Clicked'">Click still works</button>
+      </section>
+
+      <section>
+        <p>Fake API key: sk_test_vielcast_1234567890_fake</p>
+        <p>Fake email: demo.user@example.test</p>
+        <p>Fake phone: +91 98765 43210</p>
+        <label>
+          Password field
+          <input type="password" value="fake-password" />
+        </label>
+      </section>
+
+      <section data-vielcast-sensitive="true">
+        This entire test element is marked sensitive through data-vielcast-sensitive="true".
+      </section>
+
+      <section id="dynamic-target"></section>
+      <section id="moving-secret">Moving fake token: token = "vielcastmovingfake12345"</section>
+    </main>
+
+    <script>
+      setTimeout(() => {
+        document.getElementById("dynamic-target").textContent = "Dynamic fake email: inserted@example.test";
+      }, 1200);
+
+      setTimeout(() => {
+        document.getElementById("moving-secret").classList.add("moved");
+      }, 2200);
+    </script>
+  </body>
+</html>

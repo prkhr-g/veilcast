@@ -15,8 +15,7 @@ body {
   background: radial-gradient(circle at 20% 0%, rgba(81, 255, 181, 0.14), transparent 34%), #050607;
 }
 
-button,
-input {
+button {
   font: inherit;
 }
 
@@ -57,38 +56,10 @@ h1 {
 .brand-row p,
 .eyebrow,
 .hint-text,
-.error-text {
+.error-text,
+.region-count {
   color: #9ba8a0;
   font-size: 12px;
-}
-
-.settings-panel {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-.toggle-row {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #edf7f1;
-  font-size: 13px;
-}
-
-.toggle-row input {
-  width: 34px;
-  height: 18px;
-  accent-color: #9dffd1;
-  cursor: pointer;
-}
-
-.toggle-row input:disabled {
-  cursor: not-allowed;
 }
 
 .status-panel {
@@ -109,20 +80,9 @@ h1 {
   box-shadow: 0 0 18px rgba(127, 135, 144, 0.6);
 }
 
-.status-selecting .status-dot,
-.status-starting .status-dot {
-  background: #ffd166;
-  box-shadow: 0 0 18px rgba(255, 209, 102, 0.7);
-}
-
 .status-active .status-dot {
   background: #64ffad;
   box-shadow: 0 0 20px rgba(100, 255, 173, 0.78);
-}
-
-.status-error .status-dot {
-  background: #ff5f6d;
-  box-shadow: 0 0 18px rgba(255, 95, 109, 0.65);
 }
 
 .status-panel strong {
@@ -131,34 +91,22 @@ h1 {
   font-size: 22px;
 }
 
+.region-count {
+  margin-top: 4px;
+}
+
 .error-text {
   color: #ff98a2;
 }
 
-.button-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-
-.primary-button,
-.secondary-button {
+.primary-button {
   min-height: 42px;
   border: 0;
   padding: 0 14px;
   cursor: pointer;
-}
-
-.primary-button {
   background: #9dffd1;
   color: #07100b;
   font-weight: 800;
-}
-
-.secondary-button {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: transparent;
-  color: #f3f7f4;
 }
 
 button:disabled {

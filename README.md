@@ -163,9 +163,9 @@ EXTENSION_ORIGINS=chrome-extension://your-extension-id,http://localhost:5173
 
 Production CORS is never unrestricted. Development additionally allows common localhost origins.
 
-## Chrome Extension Safe Preview
+## Chrome Extension Safe Share
 
-The first local capture flow lives in `ex-frontend` as a WXT Manifest V3 Chrome extension. It does not call the backend and does not send captured frames, stream IDs or page information off-device.
+The extension lives in `ex-frontend` as a WXT Manifest V3 Chrome extension. Safe Share no longer starts a capture session or opens Chrome's source picker; it injects a local DOM shield into the active HTTP/HTTPS tab.
 
 ### Run In Development
 
@@ -184,48 +184,28 @@ WXT writes the Chrome development build to `ex-frontend/.output/chrome-mv3`.
 4. Select `ex-frontend/.output/chrome-mv3`.
 5. Pin VeilCast from the Chrome extensions menu.
 
-### Start Safe Preview
+### Use Safe Share
 
-1. Open the browser window you want to present.
-2. Click the VeilCast extension icon.
-3. Click Start Safe Sharing.
-4. In Chrome's picker, choose a window from the Window tab. Do not choose the full desktop.
-5. VeilCast opens one Safe Preview window and displays the live captured window with a transparent mask canvas above it.
+1. Start sharing the browser tab normally in Meet, Zoom, Teams or another meeting app.
+2. Open the VeilCast popup on that same tab.
+3. Click Enable Safe Share.
+4. Confirm `#vielcast-shield-root` appears in the page and the page remains clickable.
+5. Click Safe Share Active to remove the shield.
 
-### Test Switching Tabs
+### Local Fixture
 
-1. Keep the Safe Preview window open.
-2. Return to the original captured browser window.
-3. Switch tabs or navigate within that same window.
-4. Confirm the same Safe Preview window updates live and the original browser pages are not modified.
+Open `ex-frontend/test-fixtures/safe-share.html` in an HTTP server or any test page URL the extension can access. It includes fake secrets, dynamic content, a password field, scroll height and a moving sensitive element.
 
-### Share In Google Meet
+### Current Limitations
 
-1. Start a Google Meet call.
-2. Click Present now.
-3. Choose A window.
-4. Select the VeilCast Safe Preview window, not the original browser window.
-5. Stop sharing from Meet or click Stop Sharing in the VeilCast popup.
+- Chrome/Chromium only.
+- Protection applies only inside browser-tab DOM content. It does not protect native desktop apps or whole-screen shares outside the browser page.
+- Text, password inputs and `data-vielcast-sensitive="true"` elements are handled locally; OCR, face/photo masking and QR image decoding are not implemented in this step.
 
-### Current Capture Limitations
+## Safe Share Message Flow
 
-- Chrome/Chromium only; Firefox support is not implemented.
-- The picker is restricted to browser/window capture by requesting only `window` sources through `chrome.desktopCapture`.
-- Linux Wayland behavior depends on Chrome and the desktop portal. Some environments may show a system picker, omit some windows, or require X11 for stable window capture.
-- The Safe Preview overlay is transparent and empty; masking is reserved for a later step.
-
-## Corrected Chrome Capture Message Flow
-
-The MV3 service worker must not call `chrome.desktopCapture.chooseDesktopMedia()`. The working flow is now:
-
-1. Popup receives the user click and sends `PREPARE_SAFE_SHARING` to the background.
-2. Background blocks duplicate sessions and moves status to `Selecting`.
-3. Popup calls `chrome.desktopCapture.chooseDesktopMedia(["window"], callback)` directly from the user gesture.
-4. If Chrome returns an empty stream ID, popup sends `CANCEL_SAFE_SHARING`; background clears ephemeral state and returns to `Idle`.
-5. If Chrome returns a non-empty stream ID, popup immediately sends `START_SAFE_SHARING` with that single-use stream ID.
-6. Background stores the stream ID in memory only, opens exactly one Safe Preview window, and waits for `SAFE_PREVIEW_READY`.
-7. Safe Preview requests the stream ID once, then immediately calls `navigator.mediaDevices.getUserMedia()` locally.
-8. Background clears the stream ID as soon as it hands it to Safe Preview.
-9. Stop, preview close, stream ended, and preview failure paths clear session state without using persistent storage.
-
-The stream ID is never written to `chrome.storage.local` and is never sent to the Hono backend.
+1. Popup queries the active tab and rejects browser-internal URLs.
+2. Popup injects `content-scripts/content.js` into the active tab with `chrome.scripting.executeScript`.
+3. Popup sends `VIELCAST_TOGGLE_SHIELD` or `VIELCAST_GET_SHIELD_STATE` with the typed runtime message contract.
+4. Content script scans local DOM text with `detection-core`, converts text ranges to viewport-relative client rects, and renders opaque masks in a Shadow DOM overlay.
+5. Disable removes the root, masks, observers, listeners and pending animation frame.

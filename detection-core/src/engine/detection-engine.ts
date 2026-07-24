@@ -57,7 +57,7 @@ export class DetectionEngine {
 
   scan(rawInput: ScanInput): Detection[] {
     const input = validateScanInput(rawInput);
-    if (input.content.length === 0 && !input.imageData) return [];
+    if (input.content.length === 0) return [];
 
     const findings = [...this.detectors.values()]
       .filter(detector => !this.disabled.has(detector.name))

@@ -3,9 +3,10 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@veilcast/detection-core": ["../detection-core/src/index.ts"]
     },
     "types": ["bun", "chrome"]
   },
-  "include": ["entrypoints", "src/extension", "tests", "wxt.config.ts"]
+  "include": ["entrypoints", "src/extension", "../detection-core/src", "tests", "wxt.config.ts"]
 }

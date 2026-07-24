@@ -147,50 +147,39 @@ The previous QR image-decoding dependency was removed from `detection-core/packa
 
 Implement real local image/QR decoding behind the `detection-core` image adapter, then have `POST /api/detections/image` call that adapter without moving decoding logic into `main-backend`.
 
-## Chrome Extension Safe Preview
+## Chrome Extension Safe Share
 
 Implemented in `ex-frontend` as a WXT Manifest V3 Chrome extension:
 
-- `entrypoints/popup`: React popup with VeilCast branding, session status and Start/Stop controls.
-- `entrypoints/background`: MV3 service worker that prevents duplicate sessions, opens the Chrome window picker and owns ephemeral capture state.
-- `entrypoints/safe-preview`: separate extension window that consumes the stream ID locally and renders the live preview.
-- `src/extension/messages.ts`: typed runtime message contracts.
-- `src/extension/capture/capture-adapter.ts`: capture adapter interface.
-- `src/extension/capture/chrome-capture-adapter.ts`: Chrome `desktopCapture` adapter using only `window` sources.
-- `src/extension/session-status.ts`: shared status helpers covered by unit tests.
+- `entrypoints/popup`: React popup with a one-click Safe Share toggle and active-tab error handling.
+- `entrypoints/content.ts`: injected content script that owns the DOM shield, local detection scan, masks and cleanup.
+- `src/extension/messages.ts`: typed runtime message contracts and detection-region validation.
+- `test-fixtures/safe-share.html`: local manual fixture with fake secrets, dynamic content, scrolling and moving content.
 
-The capture flow does not modify original pages, does not call the Hono backend, and does not persist stream IDs. The stream ID is held in background memory only until the Safe Preview page asks for it.
+Safe Share does not start capture, does not open a source picker, does not call the Hono backend and does not send page content off-device.
 
 Manual acceptance flow:
 
 1. Run `bun run dev:extension`.
 2. Load `ex-frontend/.output/chrome-mv3` unpacked in Chrome.
-3. Click Start Safe Sharing in the popup.
-4. Choose a browser window in Chrome's picker.
-5. Confirm exactly one Safe Preview window opens and shows live video.
-6. Return to the captured browser window and switch tabs.
-7. Confirm the same Safe Preview updates while original pages remain unchanged.
-8. In Google Meet, share the Safe Preview window instead of the original browser window.
-9. Click Stop Sharing and confirm the popup returns to Idle.
+3. Open an HTTP/HTTPS test page, such as the fixture through a local static server.
+4. Click Enable Safe Share in the popup.
+5. Confirm one `#vielcast-shield-root` exists, masks cover fake sensitive regions and normal page clicks still work.
+6. Scroll, resize, wait for dynamic content and confirm masks stay aligned.
+7. Click Safe Share Active and confirm the root is removed.
+8. Open a browser-internal page and confirm the popup shows the unsupported-page error.
 
 Known extension limitations:
 
 - Chrome/Chromium only.
-- No QR decoding, OCR, AI, face detection or backend endpoint changes in this step.
-- Wayland window capture support depends on Chrome and desktop portal behavior.
+- Browser-tab DOM content only; native apps and whole-screen content outside the page are out of scope.
+- No OCR, face/photo masking or QR image decoding in this step.
 
-## Corrected Chrome Capture Message Flow
+## Safe Share Message Flow
 
-The MV3 service worker must not call `chrome.desktopCapture.chooseDesktopMedia()`. The working flow is now:
-
-1. Popup receives the user click and sends `PREPARE_SAFE_SHARING` to the background.
-2. Background blocks duplicate sessions and moves status to `Selecting`.
-3. Popup calls `chrome.desktopCapture.chooseDesktopMedia(["window"], callback)` directly from the user gesture.
-4. If Chrome returns an empty stream ID, popup sends `CANCEL_SAFE_SHARING`; background clears ephemeral state and returns to `Idle`.
-5. If Chrome returns a non-empty stream ID, popup immediately sends `START_SAFE_SHARING` with that single-use stream ID.
-6. Background stores the stream ID in memory only, opens exactly one Safe Preview window, and waits for `SAFE_PREVIEW_READY`.
-7. Safe Preview requests the stream ID once, then immediately calls `navigator.mediaDevices.getUserMedia()` locally.
-8. Background clears the stream ID as soon as it hands it to Safe Preview.
-9. Stop, preview close, stream ended, and preview failure paths clear session state without using persistent storage.
-
-The stream ID is never written to `chrome.storage.local` and is never sent to the Hono backend.
+1. Popup resolves the active tab and rejects unsupported URLs.
+2. Popup injects the WXT content-script bundle with the `scripting` permission.
+3. Popup sends typed `VIELCAST_*` messages to the content script.
+4. Content script owns per-tab shield state and answers state queries directly.
+5. Detection regions are viewport-relative and rendered as mostly opaque fixed-position Shadow DOM masks.
+6. Disable disconnects observers, removes listeners, cancels pending refresh and removes VielCast DOM.
