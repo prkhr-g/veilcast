@@ -17,6 +17,12 @@ describe("Safe Share DOM shield", () => {
     expect(combined).not.toContain("MediaStream");
   });
 
+
+  test("includes browser QR image detection", () => {
+    expect(contentSource).toContain("BarcodeDetector");
+    expect(contentSource).toContain('type: "qr-code"');
+  });
+
   test("uses only the required permissions", () => {
     expect(configSource).toContain('permissions: ["activeTab", "scripting", "storage"]');
   });

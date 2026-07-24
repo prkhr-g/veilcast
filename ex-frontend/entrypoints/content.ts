@@ -13,6 +13,17 @@ const ROOT_ID = "vielcast-shield-root";
 const MASK_PADDING = 4;
 const LISTENER_FLAG = "__vielcastShieldContentScriptLoaded";
 
+type NativeBarcode = {
+  format?: string;
+  rawValue?: string;
+};
+
+type NativeBarcodeDetector = {
+  detect(source: HTMLImageElement): Promise<NativeBarcode[]>;
+};
+
+type NativeBarcodeDetectorConstructor = new (options?: { formats?: string[] }) => NativeBarcodeDetector;
+
 export default defineContentScript({
   registration: "runtime",
   matches: [],
@@ -25,54 +36,50 @@ export default defineContentScript({
     let shield: ShieldController | undefined;
 
     chrome.runtime.onMessage.addListener((message: VielCastMessage, _sender, sendResponse) => {
-      try {
-        if (!isVielCastMessage(message)) return false;
+      if (!isVielCastMessage(message)) return false;
 
-        if (message.type === "VIELCAST_GET_SHIELD_STATE") {
-          sendResponse(ok(state()));
-          return true;
-        }
-
-        if (message.type === "VIELCAST_ENABLE_SHIELD") {
-          shield ??= new ShieldController();
-          shield.enable();
-          sendResponse(ok(state()));
-          return true;
-        }
-
-        if (message.type === "VIELCAST_DISABLE_SHIELD") {
-          shield?.disable();
-          shield = undefined;
-          sendResponse(ok(state()));
-          return true;
-        }
-
-        if (message.type === "VIELCAST_TOGGLE_SHIELD") {
-          if (shield?.enabled) {
-            shield.disable();
-            shield = undefined;
-          } else {
-            shield ??= new ShieldController();
-            shield.enable();
-          }
-          sendResponse(ok(state()));
-          return true;
-        }
-
-        if (message.type === "VIELCAST_UPDATE_REGIONS") {
-          shield ??= new ShieldController();
-          shield.enable();
-          shield.renderRegions(message.regions);
-          sendResponse(ok(state()));
-          return true;
-        }
-
-        return false;
-      } catch (error) {
-        sendResponse({ ok: false, error: error instanceof Error ? error.message : "Unexpected runtime message failure." });
+      if (message.type === "VIELCAST_GET_SHIELD_STATE") {
+        sendResponse(ok(state()));
         return true;
       }
+
+      void handleMessage(message).then(
+        () => sendResponse(ok(state())),
+        error => sendResponse({ ok: false, error: error instanceof Error ? error.message : "Unexpected runtime message failure." }),
+      );
+      return true;
     });
+
+    async function handleMessage(message: VielCastMessage): Promise<void> {
+      if (message.type === "VIELCAST_ENABLE_SHIELD") {
+        shield ??= new ShieldController();
+        await shield.enable();
+        return;
+      }
+
+      if (message.type === "VIELCAST_DISABLE_SHIELD") {
+        shield?.disable();
+        shield = undefined;
+        return;
+      }
+
+      if (message.type === "VIELCAST_TOGGLE_SHIELD") {
+        if (shield?.enabled) {
+          shield.disable();
+          shield = undefined;
+        } else {
+          shield ??= new ShieldController();
+          await shield.enable();
+        }
+        return;
+      }
+
+      if (message.type === "VIELCAST_UPDATE_REGIONS") {
+        shield ??= new ShieldController();
+        await shield.enable();
+        shield.renderRegions(message.regions);
+      }
+    }
 
     function state(): ShieldState {
       return { enabled: shield?.enabled ?? false, regionCount: shield?.regionCount ?? 0 };
@@ -97,28 +104,29 @@ function isVielCastMessage(message: unknown): message is VielCastMessage {
 class ShieldController {
   readonly detector = new DetectionEngine();
   readonly masks = new Map<string, HTMLElement>();
+  readonly qrImageCache = new WeakMap<HTMLImageElement, boolean>();
+  readonly watchedImages = new WeakSet<HTMLImageElement>();
   readonly resizeObserver = new ResizeObserver(() => this.scheduleRefresh());
   readonly mutationObserver = new MutationObserver(() => this.scheduleRefresh());
+  readonly barcodeDetector = createQrDetector();
   root?: HTMLElement;
   layer?: HTMLElement;
   frame = 0;
   enabled = false;
   regionCount = 0;
 
-  enable(): void {
-    if (this.enabled) {
-      this.scheduleRefresh();
-      return;
+  async enable(): Promise<void> {
+    if (!this.enabled) {
+      this.enabled = true;
+      this.mount();
+      this.mutationObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      this.resizeObserver.observe(document.documentElement);
+      window.addEventListener("scroll", this.scheduleRefresh, true);
+      window.addEventListener("resize", this.scheduleRefresh);
+      window.addEventListener("popstate", this.scheduleRefresh);
     }
 
-    this.enabled = true;
-    this.mount();
-    this.mutationObserver.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-    this.resizeObserver.observe(document.documentElement);
-    window.addEventListener("scroll", this.scheduleRefresh, true);
-    window.addEventListener("resize", this.scheduleRefresh);
-    window.addEventListener("popstate", this.scheduleRefresh);
-    this.scheduleRefresh();
+    await this.refresh();
   }
 
   disable(): void {
@@ -141,9 +149,16 @@ class ShieldController {
     if (!this.enabled || this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
-      this.renderRegions(this.detectRegions());
+      void this.refresh();
     });
   };
+
+  async refresh(): Promise<void> {
+    if (!this.enabled) return;
+    const regions = this.detectTextRegions();
+    regions.push(...await this.detectQrImageRegions());
+    if (this.enabled) this.renderRegions(regions);
+  }
 
   renderRegions(regions: DetectionRegion[]): void {
     this.mount();
@@ -178,7 +193,7 @@ class ShieldController {
     this.regionCount = this.masks.size;
   }
 
-  detectRegions(): DetectionRegion[] {
+  detectTextRegions(): DetectionRegion[] {
     const regions: DetectionRegion[] = [];
     const body = document.body;
     if (!body) return regions;
@@ -235,6 +250,54 @@ class ShieldController {
     }
 
     return regions;
+  }
+
+  async detectQrImageRegions(): Promise<DetectionRegion[]> {
+    const regions: DetectionRegion[] = [];
+    const images = [...document.images];
+
+    await Promise.all(images.map(async (image, index) => {
+      const rect = image.getBoundingClientRect();
+      if (!isVisibleRect(rect) || !isVisibleElement(image)) return;
+
+      if (!image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+        this.watchImageLoad(image);
+        return;
+      }
+
+      const cached = this.qrImageCache.get(image);
+      if (cached === true) {
+        regions.push(qrImageRegion(image, rect, index, 0.98));
+        return;
+      }
+      if (cached === false && !looksLikeQrImage(image)) return;
+
+      if (looksLikeQrImage(image)) {
+        this.qrImageCache.set(image, true);
+        regions.push(qrImageRegion(image, rect, index, 0.65));
+        return;
+      }
+
+      if (!this.barcodeDetector) return;
+
+      try {
+        const barcodes = await this.barcodeDetector.detect(image);
+        const hasQr = barcodes.some(barcode => barcode.format === "qr_code" || Boolean(barcode.rawValue));
+        this.qrImageCache.set(image, hasQr);
+        if (hasQr) regions.push(qrImageRegion(image, rect, index, 0.98));
+      } catch {
+        this.qrImageCache.set(image, false);
+      }
+    }));
+
+    return regions;
+  }
+
+  watchImageLoad(image: HTMLImageElement): void {
+    if (this.watchedImages.has(image)) return;
+    this.watchedImages.add(image);
+    image.addEventListener("load", this.scheduleRefresh, { once: true });
+    image.addEventListener("error", this.scheduleRefresh, { once: true });
   }
 
   mount(): void {
@@ -310,6 +373,19 @@ function regionsForTextNode(
   }
 }
 
+function qrImageRegion(image: HTMLImageElement, rect: DOMRect, index: number, confidence: number): DetectionRegion {
+  return {
+    id: `qr-image-${index}-${hash(image.currentSrc || image.src || image.alt || rectKey(rect))}-${hash(rectKey(rect))}`,
+    type: "qr-code",
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+    confidence,
+    label: "QR code",
+  };
+}
+
 function positionMask(mask: HTMLElement, region: DetectionRegion): void {
   const left = Math.max(0, region.x - MASK_PADDING);
   const top = Math.max(0, region.y - MASK_PADDING);
@@ -340,8 +416,24 @@ function toRegionType(type: DetectionType): DetectionRegionType | undefined {
     case "credit_card":
       return "credit-card";
     case "qr_code":
-      return undefined;
+      return "qr-code";
   }
+}
+
+function createQrDetector(): NativeBarcodeDetector | undefined {
+  const ctor = (globalThis as typeof globalThis & { BarcodeDetector?: NativeBarcodeDetectorConstructor }).BarcodeDetector;
+  if (!ctor) return undefined;
+
+  try {
+    return new ctor({ formats: ["qr_code"] });
+  } catch {
+    return undefined;
+  }
+}
+
+function looksLikeQrImage(image: HTMLImageElement): boolean {
+  const value = [image.alt, image.title, image.ariaLabel, image.currentSrc, image.src].join(" ").toLowerCase();
+  return value.includes("qr code") || value.includes("qrcode") || value.includes("qr-code") || value.includes("barcode");
 }
 
 function isVisibleElement(element: Element): boolean {

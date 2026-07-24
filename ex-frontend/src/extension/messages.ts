@@ -6,6 +6,7 @@ export type DetectionRegionType =
   | "phone"
   | "credit-card"
   | "private-key"
+  | "qr-code"
   | "sensitive-text"
   | "unknown";
 
