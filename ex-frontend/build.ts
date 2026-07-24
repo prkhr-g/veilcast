@@ -4,92 +4,50 @@ import { existsSync } from "fs";
 import { rm } from "fs/promises";
 import path from "path";
 
-if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log(`
-🏗️  Bun Build Script
+const appRoot = import.meta.dir;
 
-Usage: bun run build.ts [options]
+const toCamelCase = (str: string): string => str.replace(/-([a-z])/g, group => group[1]?.toUpperCase() ?? "");
 
-Common Options:
-  --outdir <path>          Output directory (default: "dist")
-  --minify                 Enable minification (or --minify.whitespace, --minify.syntax, etc)
-  --sourcemap <type>      Sourcemap type: none|linked|inline|external
-  --target <target>        Build target: browser|bun|node
-  --format <format>        Output format: esm|cjs|iife
-  --splitting              Enable code splitting
-  --packages <type>        Package handling: bundle|external
-  --public-path <path>     Public path for assets
-  --env <mode>             Environment handling: inline|disable|prefix*
-  --conditions <list>      Package.json export conditions (comma separated)
-  --external <list>        External packages (comma separated)
-  --banner <text>          Add banner text to output
-  --footer <text>          Add footer text to output
-  --define <obj>           Define global constants (e.g. --define.VERSION=1.0.0)
-  --help, -h               Show this help message
-
-Example:
-  bun run build.ts --outdir=dist --minify --sourcemap=linked --external=react,react-dom
-`);
-  process.exit(0);
-}
-
-const toCamelCase = (str: string): string => str.replace(/-([a-z])/g, g => g[1].toUpperCase());
-
-const parseValue = (value: string): any => {
+const parseValue = (value: string): unknown => {
   if (value === "true") return true;
   if (value === "false") return false;
-
-  if (/^\d+$/.test(value)) return parseInt(value, 10);
-  if (/^\d*\.\d+$/.test(value)) return parseFloat(value);
-
-  if (value.includes(",")) return value.split(",").map(v => v.trim());
-
+  if (/^\d+$/.test(value)) return Number.parseInt(value, 10);
+  if (/^\d*\.\d+$/.test(value)) return Number.parseFloat(value);
+  if (value.includes(",")) return value.split(",").map(item => item.trim());
   return value;
 };
 
 function parseArgs(): Partial<Bun.BuildConfig> {
-  const config: Partial<Bun.BuildConfig> = {};
+  const config: Record<string, unknown> = {};
   const args = process.argv.slice(2);
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg === undefined) continue;
-    if (!arg.startsWith("--")) continue;
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (!arg?.startsWith("--")) continue;
 
     if (arg.startsWith("--no-")) {
-      const key = toCamelCase(arg.slice(5));
-      config[key] = false;
+      config[toCamelCase(arg.slice(5))] = false;
       continue;
     }
 
-    if (!arg.includes("=") && (i === args.length - 1 || args[i + 1]?.startsWith("--"))) {
-      const key = toCamelCase(arg.slice(2));
-      config[key] = true;
+    if (!arg.includes("=") && (index === args.length - 1 || args[index + 1]?.startsWith("--"))) {
+      config[toCamelCase(arg.slice(2))] = true;
       continue;
     }
 
     let key: string;
     let value: string;
-
     if (arg.includes("=")) {
       [key, value] = arg.slice(2).split("=", 2) as [string, string];
     } else {
       key = arg.slice(2);
-      value = args[++i] ?? "";
+      value = args[++index] ?? "";
     }
 
-    key = toCamelCase(key);
-
-    if (key.includes(".")) {
-      const [parentKey, childKey] = key.split(".");
-      config[parentKey] = config[parentKey] || {};
-      config[parentKey][childKey] = parseValue(value);
-    } else {
-      config[key] = parseValue(value);
-    }
+    config[toCamelCase(key)] = parseValue(value);
   }
 
-  return config;
+  return config as Partial<Bun.BuildConfig>;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -105,24 +63,17 @@ const formatFileSize = (bytes: number): string => {
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 };
 
-console.log("\n🚀 Starting build process...\n");
-
 const cliConfig = parseArgs();
-const outdir = cliConfig.outdir || path.join(process.cwd(), "dist");
+const outdir = path.resolve(process.cwd(), String(cliConfig.outdir ?? "dist/ex-frontend"));
 
-if (existsSync(outdir)) {
-  console.log(`🗑️ Cleaning previous build at ${outdir}`);
-  await rm(outdir, { recursive: true, force: true });
-}
+if (existsSync(outdir)) await rm(outdir, { recursive: true, force: true });
+
+const srcDir = path.join(appRoot, "src");
+const entrypoints = [...new Bun.Glob("**/*.html").scanSync(srcDir)].map(file => path.join(srcDir, file));
 
 const start = performance.now();
-
-const entrypoints = [...new Bun.Glob("**.html").scanSync("src")]
-  .map(a => path.resolve("src", a))
-  .filter(dir => !dir.includes("node_modules"));
-console.log(`📄 Found ${entrypoints.length} HTML ${entrypoints.length === 1 ? "file" : "files"} to process\n`);
-
 const result = await Bun.build({
+  ...cliConfig,
   entrypoints,
   outdir,
   plugins: [plugin],
@@ -132,18 +83,13 @@ const result = await Bun.build({
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
-  ...cliConfig,
 });
 
-const end = performance.now();
-
-const outputTable = result.outputs.map(output => ({
-  File: path.relative(process.cwd(), output.path),
-  Type: output.kind,
-  Size: formatFileSize(output.size),
-}));
-
-console.table(outputTable);
-const buildTime = (end - start).toFixed(2);
-
-console.log(`\n✅ Build completed in ${buildTime}ms\n`);
+console.table(
+  result.outputs.map(output => ({
+    File: path.relative(process.cwd(), output.path),
+    Type: output.kind,
+    Size: formatFileSize(output.size),
+  })),
+);
+console.log(`Build completed in ${(performance.now() - start).toFixed(2)}ms`);

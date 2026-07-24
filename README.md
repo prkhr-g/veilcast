@@ -1,21 +1,18 @@
-# bun-react-tailwind-shadcn-template
+# VeilCast
 
-To install dependencies:
+This repo is split into three top-level packages:
+
+- `detection-core`: standalone local sensitive-content detector.
+- `main-backend`: Bun server and API routes.
+- `ex-frontend`: existing React frontend from the template.
+
+## Commands
 
 ```bash
 bun install
-```
-
-To start a development server:
-
-```bash
 bun dev
+bun test
+bun run build
 ```
 
-To run for production:
-
-```bash
-bun start
-```
-
-This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+The current frontend is still the original Bun/React template UI. The backend serves it and exposes `POST /api/scan`, which delegates to `detection-core` and returns masked detections only.

@@ -1,41 +1,41 @@
 import { serve } from "bun";
-import index from "./index.html";
+import { detectionEngine } from "../../detection-core/src/index";
+import index from "../../ex-frontend/src/index.html";
 
 const server = serve({
   routes: {
-    // Serve index.html for all unmatched routes.
     "/*": index,
 
     "/api/hello": {
-      async GET(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
+      async GET() {
+        return Response.json({ message: "Hello, world!", method: "GET" });
       },
-      async PUT(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
+      async PUT() {
+        return Response.json({ message: "Hello, world!", method: "PUT" });
       },
     },
 
     "/api/hello/:name": async req => {
-      const name = req.params.name;
-      return Response.json({
-        message: `Hello, ${name}!`,
-      });
+      return Response.json({ message: `Hello, ${req.params.name}!` });
+    },
+
+    "/api/scan": {
+      async POST(req) {
+        try {
+          const body = await req.json();
+          const detections = detectionEngine.scan(body);
+          return Response.json({ detections });
+        } catch (error) {
+          return Response.json({ error: error instanceof Error ? error.message : "Invalid scan request" }, { status: 400 });
+        }
+      },
     },
   },
 
   development: process.env.NODE_ENV !== "production" && {
-    // Enable browser hot reloading in development
     hmr: true,
-
-    // Echo console logs from the browser to the server
     console: true,
   },
 });
 
-console.log(`🚀 Server running at ${server.url}`);
+console.log(`Server running at ${server.url}`);
