@@ -115,4 +115,44 @@ describe("detection core", () => {
     engine.disableDetector("custom-test");
     expect(engine.scan({ source: "dom", content: "custom@example.com" })).toEqual([]);
   });
+
+  test("reports QR masking metadata without the decoded QR value", async () => {
+    const qrValue = "otpauth://totp/example?secret=do-not-send-this";
+    const engine = new DetectionEngine([
+      {
+        name: "test-qr",
+        detect() {
+          return [{
+            type: "qr_code",
+            value: qrValue,
+            confidence: 0.98,
+            severity: "high",
+            range: { start: 0, end: 1 },
+            bounds: { x: 420, y: 180, width: 160, height: 160 },
+            reason: "QR code may expose payment or authentication data",
+            detector: "test-qr",
+          }];
+        },
+      },
+    ]);
+    const originalFetch = globalThis.fetch;
+    let requestedEndpoint: string | undefined;
+    let requestBody: string | undefined;
+    globalThis.fetch = async (input, init) => {
+      requestedEndpoint = String(input);
+      requestBody = String(init?.body);
+      return new Response(null, { status: 204 });
+    };
+
+    try {
+      const detections = await engine.scanAndReportQr({ source: "ocr", content: "x" });
+      expect(detections).toHaveLength(1);
+      expect(requestedEndpoint).toBe("/api/detections/qr");
+      expect(requestBody).toContain('"action":"mask"');
+      expect(requestBody).toContain('"region":{"x":420,"y":180,"width":160,"height":160}');
+      expect(requestBody).not.toContain(qrValue);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

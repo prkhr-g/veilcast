@@ -6,6 +6,7 @@ import { passwordDetector } from "../detectors/contextual/password.detector";
 import { creditCardDetector } from "../detectors/pii/credit-card.detector";
 import { emailDetector } from "../detectors/pii/email.detector";
 import { phoneDetector } from "../detectors/pii/phone.detector";
+import { qrDetector } from "../detectors/pii/qr.detector";
 import { deduplicateFindings } from "./deduplicator";
 import { isValidFinding, validateScanInput } from "./validator";
 import { maskValue } from "../utils/masking";
@@ -20,7 +21,18 @@ const defaultDetectors = [
   creditCardDetector,
   emailDetector,
   phoneDetector,
+  qrDetector,
 ];
+
+export type QrDetectionApiPayload = {
+  id: string;
+  type: "qr_code";
+  confidence: number;
+  severity: "high";
+  action: "mask";
+  region: { x: number; y: number; width: number; height: number };
+  reason: string;
+};
 
 export class DetectionEngine {
   private readonly detectors = new Map<string, Detector>();
@@ -45,7 +57,7 @@ export class DetectionEngine {
 
   scan(rawInput: ScanInput): Detection[] {
     const input = validateScanInput(rawInput);
-    if (input.content.length === 0) return [];
+    if (input.content.length === 0 && !input.imageData) return [];
 
     const findings = [...this.detectors.values()]
       .filter(detector => !this.disabled.has(detector.name))
@@ -67,10 +79,42 @@ export class DetectionEngine {
       };
 
       if (input.elementId) detection.elementId = input.elementId;
-      if (input.bounds) detection.bounds = input.bounds;
+      if (finding.bounds ?? input.bounds) detection.bounds = finding.bounds ?? input.bounds;
       return detection;
     });
   }
+
+  /**
+   * Decodes QR codes and reports only masking metadata to the configured QR API.
+   * The decoded QR payload is intentionally never included in this request.
+   */
+  async scanAndReportQr(rawInput: ScanInput, endpoint = "/api/detections/qr"): Promise<Detection[]> {
+    const detections = this.scan(rawInput).filter(detection => detection.type === "qr_code");
+    await Promise.all(detections.map(detection => postQrDetection(endpoint, toQrApiPayload(detection))));
+    return detections;
+  }
+}
+
+function toQrApiPayload(detection: Detection): QrDetectionApiPayload {
+  const region = detection.bounds ?? { x: 0, y: 0, width: 0, height: 0 };
+  return {
+    id: detection.id,
+    type: "qr_code",
+    confidence: detection.confidence,
+    severity: "high",
+    action: "mask",
+    region,
+    reason: detection.reason,
+  };
+}
+
+async function postQrDetection(endpoint: string, payload: QrDetectionApiPayload): Promise<void> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`QR detection API request failed: ${response.status}`);
 }
 
 function stableId(input: ScanInput, detector: string, type: string, start: number, end: number): string {

@@ -9,5 +9,8 @@
   "scripts": {
     "build": "bun build src/index.ts --target=bun --outdir=dist --packages=external",
     "test": "bun test tests"
+  },
+  "dependencies": {
+    "jsqr": "^1.4.0"
   }
 }

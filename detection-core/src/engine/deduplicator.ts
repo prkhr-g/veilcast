@@ -10,6 +10,7 @@ const specificity: Record<string, number> = {
   password: 4,
   email: 3,
   phone: 2,
+  qr_code: 6,
 };
 
 export function deduplicateFindings(findings: DetectorFinding[]): DetectorFinding[] {

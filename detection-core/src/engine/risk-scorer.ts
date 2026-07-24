@@ -9,6 +9,7 @@ const severityByType: Record<DetectionType, DetectionSeverity> = {
   credit_card: "high",
   email: "medium",
   phone: "medium",
+  qr_code: "high",
 };
 
 export function defaultSeverity(type: DetectionType): DetectionSeverity {

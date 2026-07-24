@@ -16,3 +16,17 @@ const detections = detectionEngine.scan({
 The engine currently detects API keys, JWTs, database URLs, private keys, passwords/secrets, email addresses, phone numbers, and Luhn-valid credit-card candidates.
 
 Raw sensitive values are never returned. Detector authors should return raw matches only through the internal `DetectorFinding.value` field so the engine can mask and discard them immediately.
+
+## QR image scanning
+
+Pass RGBA image pixels to scan a QR code locally. To decode and report masking metadata to `POST /api/detections/qr`, use `scanAndReportQr`; the decoded QR value is never sent to the API.
+
+```ts
+await detectionEngine.scanAndReportQr({
+  source: "ocr",
+  content: "",
+  imageData: rgbaPixels,
+  imageWidth: width,
+  imageHeight: height,
+});
+```
