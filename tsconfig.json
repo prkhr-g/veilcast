@@ -1,36 +1,29 @@
 {
   "compilerOptions": {
-    // Environment setup & latest features
     "lib": ["ESNext", "DOM"],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
     "jsx": "react-jsx",
     "allowJs": true,
-
-    // Bundler mode
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
-
-    // Best practices
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./ex-frontend/src/*"],
+      "@veilcast/detection-core": ["./detection-core/src/index.ts"]
     },
-
-    // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-
+  "include": ["detection-core/src", "detection-core/tests", "main-backend/src", "ex-frontend/src", "ex-frontend/build.ts"],
   "exclude": ["dist", "node_modules"]
 }
