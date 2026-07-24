@@ -24,6 +24,6 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   },
-  "include": ["detection-core/src", "detection-core/tests", "main-backend/src", "ex-frontend/src", "ex-frontend/build.ts"],
+  "include": ["detection-core/src", "detection-core/tests", "main-backend/src", "main-backend/tests", "ex-frontend/src", "ex-frontend/build.ts"],
   "exclude": ["dist", "node_modules"]
 }

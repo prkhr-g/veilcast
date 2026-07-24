@@ -1,4 +1,11 @@
 {
-  "extends": "../tsconfig.json",
-  "include": ["src", "build.ts"]
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": ["chrome"]
+  },
+  "include": ["entrypoints", "src", "tests", "wxt.config.ts"]
 }

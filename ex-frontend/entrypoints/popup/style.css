@@ -1,0 +1,137 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, monospace;
+  background: #050607;
+  color: #f3f7f4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  margin: 0;
+  background: radial-gradient(circle at 20% 0%, rgba(81, 255, 181, 0.14), transparent 34%), #050607;
+}
+
+button {
+  font: inherit;
+}
+
+.popup-shell {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(125, 255, 192, 0.52);
+  background: linear-gradient(145deg, rgba(125, 255, 192, 0.2), rgba(255, 255, 255, 0.04));
+  color: #9dffd1;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.brand-row p,
+.eyebrow,
+.hint-text,
+.error-text {
+  color: #9ba8a0;
+  font-size: 12px;
+}
+
+.status-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.055);
+  padding: 14px;
+}
+
+.status-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #7f8790;
+  box-shadow: 0 0 18px rgba(127, 135, 144, 0.6);
+}
+
+.status-selecting .status-dot,
+.status-starting .status-dot {
+  background: #ffd166;
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.7);
+}
+
+.status-active .status-dot {
+  background: #64ffad;
+  box-shadow: 0 0 20px rgba(100, 255, 173, 0.78);
+}
+
+.status-error .status-dot {
+  background: #ff5f6d;
+  box-shadow: 0 0 18px rgba(255, 95, 109, 0.65);
+}
+
+.status-panel strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+}
+
+.error-text {
+  color: #ff98a2;
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.primary-button,
+.secondary-button {
+  min-height: 42px;
+  border: 0;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: #9dffd1;
+  color: #07100b;
+  font-weight: 800;
+}
+
+.secondary-button {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: #f3f7f4;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}

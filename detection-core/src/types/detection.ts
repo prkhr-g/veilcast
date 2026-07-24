@@ -21,12 +21,8 @@ export type Bounds = {
 };
 
 export type ScanInput = {
-  source: "dom" | "ocr";
+  source: DetectionSource;
   content: string;
-  /** RGBA pixels used by image-capable detectors such as the QR detector. */
-  imageData?: Uint8ClampedArray;
-  imageWidth?: number;
-  imageHeight?: number;
   elementId?: string;
   bounds?: Bounds;
   confidence?: number;
@@ -51,7 +47,6 @@ export type Detection = {
 
 export type DetectorFinding = Omit<Detection, "id" | "maskedValue" | "source" | "elementId" | "bounds"> & {
   value: string;
-  /** A detector-specific region, preferred over the input bounds when present. */
   bounds?: Bounds;
 };
 

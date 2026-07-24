@@ -4,7 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun build.ts",
-    "dev": "bun ../main-backend/src/index.ts"
+    "dev": "wxt --browser chrome",
+    "build": "wxt build --browser chrome",
+    "prepare": "wxt prepare",
+    "test": "bun test tests"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.2",
+    "@wxt-dev/module-react": "^1.2.2",
+    "wxt": "^0.20.27"
   }
 }
