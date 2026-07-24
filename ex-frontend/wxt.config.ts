@@ -6,7 +6,7 @@ export default defineConfig({
     name: "VeilCast Safe Preview",
     short_name: "VeilCast",
     description: "Preview browser-window sharing safely before presenting.",
-    permissions: ["desktopCapture"],
+    permissions: ["desktopCapture", "storage"],
     action: {
       default_title: "VeilCast",
     },

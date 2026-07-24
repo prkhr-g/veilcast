@@ -4,6 +4,7 @@ export type CaptureErrorCode =
   | "capture_cancelled"
   | "capture_denied"
   | "capture_api_error"
+  | "invalid_stream_id"
   | "preview_unavailable"
   | "session_active"
   | "no_pending_stream"

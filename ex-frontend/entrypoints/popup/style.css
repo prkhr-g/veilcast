@@ -15,13 +15,14 @@ body {
   background: radial-gradient(circle at 20% 0%, rgba(81, 255, 181, 0.14), transparent 34%), #050607;
 }
 
-button {
+button,
+input {
   font: inherit;
 }
 
 .popup-shell {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   padding: 18px;
 }
 
@@ -59,6 +60,35 @@ h1 {
 .error-text {
   color: #9ba8a0;
   font-size: 12px;
+}
+
+.settings-panel {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.toggle-row {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #edf7f1;
+  font-size: 13px;
+}
+
+.toggle-row input {
+  width: 34px;
+  height: 18px;
+  accent-color: #9dffd1;
+  cursor: pointer;
+}
+
+.toggle-row input:disabled {
+  cursor: not-allowed;
 }
 
 .status-panel {

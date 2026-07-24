@@ -38,8 +38,8 @@ describe("Chrome capture flow", () => {
     await expect(new ChromeCaptureAdapter().requestWindowStreamId()).rejects.toThrow("User cancelled capture selection");
   });
 
-  test("keeps duplicate sessions blocked in the background", () => {
-    expect(backgroundSource).toContain('status === "selecting" || status === "starting" || status === "active"');
-    expect(backgroundSource).toContain('code: "session_active"');
+  test("delegates lifecycle state to the background session controller", () => {
+    expect(backgroundSource).toContain("createBackgroundSession");
+    expect(backgroundSource).toContain("createPreviewWindow");
   });
 });

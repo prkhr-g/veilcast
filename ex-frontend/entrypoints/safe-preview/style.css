@@ -28,21 +28,53 @@ body,
   background: #000;
 }
 
-.preview-video,
-.mask-overlay {
+.preview-video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.preview-video {
   object-fit: contain;
   background: #000;
 }
 
-.mask-overlay {
+.protection-overlay {
+  position: absolute;
   pointer-events: none;
+}
+
+.protection-region {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: hidden;
+  border: 2px solid rgba(157, 255, 209, 0.9);
+  pointer-events: none;
+}
+
+.protection-region span {
+  margin: 5px;
+  padding: 3px 6px;
+  background: rgba(3, 7, 6, 0.88);
+  color: #f6fff9;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.effect-cover {
+  background: rgba(3, 7, 6, 0.92);
+}
+
+.effect-blur {
+  background: rgba(157, 255, 209, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.effect-pixelate {
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 209, 102, 0.82) 0 8px, rgba(3, 7, 6, 0.9) 8px 16px),
+    rgba(3, 7, 6, 0.72);
 }
 
 .active-indicator {
