@@ -1,11 +1,11 @@
 {
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "jsx": "react-jsx",
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["chrome"]
+    "types": ["bun", "chrome"]
   },
-  "include": ["entrypoints", "src", "tests", "wxt.config.ts"]
+  "include": ["entrypoints", "src/extension", "tests", "wxt.config.ts"]
 }
