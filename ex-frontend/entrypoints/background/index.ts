@@ -1,5 +1,4 @@
 import { defineBackground } from "wxt/utils/define-background";
-import { ChromeCaptureAdapter } from "../../src/extension/capture/chrome-capture-adapter";
 import type {
   CaptureError,
   CaptureStatusSnapshot,
@@ -9,7 +8,6 @@ import type {
 import type { CaptureStatus } from "../../src/extension/session-status";
 
 export default defineBackground(() => {
-  const adapter = new ChromeCaptureAdapter();
   let status: CaptureStatus = "idle";
   let error: CaptureError | undefined;
   let previewWindowId: number | undefined;
@@ -31,8 +29,13 @@ export default defineBackground(() => {
     switch (message.type) {
       case "GET_CAPTURE_STATUS":
         return ok();
+      case "PREPARE_SAFE_SHARING":
+        return prepareSafeSharing();
       case "START_SAFE_SHARING":
-        return startSafeSharing();
+        return startSafeSharing(message.streamId);
+      case "CANCEL_SAFE_SHARING":
+        cancelSafeSharing(message.error);
+        return ok();
       case "STOP_SAFE_SHARING":
         await stopSafeSharing();
         return ok();
@@ -55,24 +58,47 @@ export default defineBackground(() => {
     }
   }
 
-  async function startSafeSharing(): Promise<MessageResponse> {
+  function prepareSafeSharing(): MessageResponse {
     if (status === "selecting" || status === "starting" || status === "active") {
       return fail({ code: "session_active", message: "A Safe Preview session is already running." });
     }
 
+    pendingStreamId = undefined;
     setStatus("selecting");
+    return ok();
+  }
+
+  async function startSafeSharing(streamId: string): Promise<MessageResponse> {
+    if (status !== "selecting") {
+      return fail({ code: "session_active", message: "A Safe Preview session is already running." });
+    }
+    if (!streamId) {
+      cancelSafeSharing({ code: "capture_cancelled", message: "Window selection was cancelled." });
+      return ok();
+    }
+
+    pendingStreamId = streamId;
+    setStatus("starting");
     try {
-      pendingStreamId = await adapter.requestWindowStreamId();
-      setStatus("starting");
       const preview = await createPreviewWindow();
       previewWindowId = preview.id;
       return ok();
     } catch (caught) {
       pendingStreamId = undefined;
-      const message = caught instanceof Error ? caught.message : "Capture could not be started.";
-      setError({ code: message.includes("cancelled") ? "capture_cancelled" : "capture_api_error", message });
-      return fail(error!);
+      const message = caught instanceof Error ? caught.message : "Safe Preview window could not be opened.";
+      const nextError = { code: "preview_unavailable", message } satisfies CaptureError;
+      setError(nextError);
+      return fail(nextError);
     }
+  }
+
+  function cancelSafeSharing(nextError?: CaptureError): void {
+    pendingStreamId = undefined;
+    if (nextError?.code === "capture_api_error" || nextError?.code === "capture_denied") {
+      setError(nextError);
+      return;
+    }
+    setStatus("idle");
   }
 
   function provideStreamIdToPreview(): MessageResponse {
@@ -88,7 +114,6 @@ export default defineBackground(() => {
   }
 
   async function stopSafeSharing(closeWindow = true): Promise<void> {
-    adapter.cancelPendingPicker();
     pendingStreamId = undefined;
     chrome.runtime.sendMessage({ type: "STOP_CAPTURE" } satisfies ExtensionMessage).catch(() => undefined);
 

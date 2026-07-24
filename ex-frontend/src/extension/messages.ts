@@ -21,7 +21,9 @@ export type CaptureStatusSnapshot = {
 
 export type PopupToBackgroundMessage =
   | { type: "GET_CAPTURE_STATUS" }
-  | { type: "START_SAFE_SHARING" }
+  | { type: "PREPARE_SAFE_SHARING" }
+  | { type: "START_SAFE_SHARING"; streamId: string }
+  | { type: "CANCEL_SAFE_SHARING"; error?: CaptureError }
   | { type: "STOP_SAFE_SHARING" };
 
 export type PreviewToBackgroundMessage =

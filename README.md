@@ -213,3 +213,19 @@ WXT writes the Chrome development build to `ex-frontend/.output/chrome-mv3`.
 - The picker is restricted to browser/window capture by requesting only `window` sources through `chrome.desktopCapture`.
 - Linux Wayland behavior depends on Chrome and the desktop portal. Some environments may show a system picker, omit some windows, or require X11 for stable window capture.
 - The Safe Preview overlay is transparent and empty; masking is reserved for a later step.
+
+## Corrected Chrome Capture Message Flow
+
+The MV3 service worker must not call `chrome.desktopCapture.chooseDesktopMedia()`. The working flow is now:
+
+1. Popup receives the user click and sends `PREPARE_SAFE_SHARING` to the background.
+2. Background blocks duplicate sessions and moves status to `Selecting`.
+3. Popup calls `chrome.desktopCapture.chooseDesktopMedia(["window"], callback)` directly from the user gesture.
+4. If Chrome returns an empty stream ID, popup sends `CANCEL_SAFE_SHARING`; background clears ephemeral state and returns to `Idle`.
+5. If Chrome returns a non-empty stream ID, popup immediately sends `START_SAFE_SHARING` with that single-use stream ID.
+6. Background stores the stream ID in memory only, opens exactly one Safe Preview window, and waits for `SAFE_PREVIEW_READY`.
+7. Safe Preview requests the stream ID once, then immediately calls `navigator.mediaDevices.getUserMedia()` locally.
+8. Background clears the stream ID as soon as it hands it to Safe Preview.
+9. Stop, preview close, stream ended, and preview failure paths clear session state without using persistent storage.
+
+The stream ID is never written to `chrome.storage.local` and is never sent to the Hono backend.

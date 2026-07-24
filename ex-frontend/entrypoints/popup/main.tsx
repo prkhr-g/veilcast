@@ -1,12 +1,14 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import type { CaptureStatusSnapshot, ExtensionMessage, MessageResponse } from "../../src/extension/messages";
+import { ChromeCaptureAdapter } from "../../src/extension/capture/chrome-capture-adapter";
+import type { CaptureError, CaptureStatusSnapshot, ExtensionMessage, MessageResponse } from "../../src/extension/messages";
 import { canStartSharing, canStopSharing, statusText } from "../../src/extension/session-status";
 import "./style.css";
 
 const initialSnapshot: CaptureStatusSnapshot = { status: "idle" };
 
 function Popup() {
+  const captureAdapter = useMemo(() => new ChromeCaptureAdapter(), []);
   const [snapshot, setSnapshot] = useState<CaptureStatusSnapshot>(initialSnapshot);
   const [busy, setBusy] = useState(false);
 
@@ -23,7 +25,16 @@ function Popup() {
   async function startSharing() {
     setBusy(true);
     try {
-      const response = await sendMessage({ type: "START_SAFE_SHARING" });
+      const prepared = await sendMessage({ type: "PREPARE_SAFE_SHARING" });
+      setSnapshot(prepared.snapshot);
+      if (!prepared.ok) return;
+
+      const streamId = await captureAdapter.requestWindowStreamId();
+      const response = await sendMessage({ type: "START_SAFE_SHARING", streamId });
+      setSnapshot(response.snapshot);
+    } catch (caught) {
+      const error = captureError(caught);
+      const response = await sendMessage({ type: "CANCEL_SAFE_SHARING", error });
       setSnapshot(response.snapshot);
     } finally {
       setBusy(false);
@@ -32,6 +43,7 @@ function Popup() {
 
   async function stopSharing() {
     setBusy(true);
+    captureAdapter.cancelPendingPicker();
     try {
       const response = await sendMessage({ type: "STOP_SAFE_SHARING" });
       setSnapshot(response.snapshot);
@@ -70,6 +82,13 @@ function Popup() {
       </div>
     </main>
   );
+}
+
+function captureError(caught: unknown): CaptureError {
+  const message = caught instanceof Error ? caught.message : "Capture could not be started.";
+  if (message.toLowerCase().includes("cancel")) return { code: "capture_cancelled", message };
+  if (message.toLowerCase().includes("denied")) return { code: "capture_denied", message };
+  return { code: "capture_api_error", message };
 }
 
 function sendMessage(message: ExtensionMessage): Promise<MessageResponse> {
